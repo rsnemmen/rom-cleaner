@@ -7,9 +7,10 @@ The purpose of this script is to clean a ROM collection, discarding modification
 - No tag: If there is no extra tag, the ROM is likely the original version.
 - `[U]` for the US or `[J]` for Japan.
 
+This script requires a basic knowledge of using the terminal. If you are using a Mac or Linux box, just open the terminal and issue the commands below. If you are windows user, you will have to install either [Git Bash](gitforwindows.org) or [Cygwin](cygwin.com) in order to execute this script. 
+
 ## How to use
 
-You need to open a terminal in Linux or MacOS and issue the following commands.
 
 ### Download the tool
 
@@ -18,12 +19,12 @@ You need to open a terminal in Linux or MacOS and issue the following commands.
 
 ### Check which files it will keep
 
-Without changing anything.
+By using the `--dry-run` option, the script will not actually change anything in the disk. It will only display the files and the decision to delete or keep for each one.
 
     rom-cleaner --dry-run <directory-with-ROMs>
 
 ### Keep only good ROMs
 
-Notice that this will delete files the tool judges not to be good ROMs. Be careful.
+Warning: this will delete files the tool judges to not be good ROMs. Be careful.
 
     rom-cleaner <directory-with-ROMs>
