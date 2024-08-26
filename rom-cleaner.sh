@@ -15,31 +15,41 @@ RESET='\033[0m'
 
 # Function to display usage information
 usage() {
-    echo "Usage: $0 [--dry-run] <path_to_roms_dir>"
+    echo "Usage: $0 [--dry-run] [--homebrew] <path_to_roms_dir>"
     exit 1
 }
 
 # Check if the correct number of arguments is provided
-if [[ $# -lt 1 || $# -gt 2 ]]; then
+if [[ $# -lt 1 || $# -gt 3 ]]; then
     usage
 fi
 
 # Initialize variables
 dry_run=false
+homebrew=false
 
-# Check for the --dry-run argument
-if [[ "$1" == "--dry-run" ]]; then
-    dry_run=true
-    shift
-fi
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --dry-run)
+            dry_run=true
+            shift
+            ;;
+        --homebrew)
+            homebrew=true
+            shift
+            ;;
+        *)
+            roms_dir="$1"
+            shift
+            ;;
+    esac
+done
 
-# The remaining argument should be the ROM directory
-roms_dir="$1"
-
-# Ensure the directory exists
-if [[ ! -d "$roms_dir" ]]; then
+# Ensure the ROMs directory is set and exists
+if [[ -z "$roms_dir" || ! -d "$roms_dir" ]]; then
     echo "Error: Directory '$roms_dir' does not exist."
-    exit 1
+    usage
 fi
 
 # Change to the ROMs directory
@@ -75,6 +85,10 @@ for rom in *; do
         keep=false
     fi
 
+    # Condition 6: If --homebrew is used, do NOT keep if the ROM has " by " in the name
+    if [[ "$homebrew" == true && "$rom" =~ " by " ]]; then
+        keep=false
+    fi
 
     # Decide whether to keep or delete the ROM based on the `keep` flag
     if [[ "$keep" == true ]]; then
