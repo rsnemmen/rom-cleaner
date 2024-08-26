@@ -1,7 +1,7 @@
  ROM cleaner
  =============
 
-The purpose of this script is to clean a ROM collection, discarding modifications, bad dumps, hacks and betas. It will keep only files that include in the filename: 
+The purpose of this script is to clean a ROM collection, discarding modifications, bad dumps, hacks, betas. Even homebrew versions if you desire so. It will keep only files that include in the filename: 
 
 - `[!]`: Indicates a good, verified dump. You generally want to keep these versions.
 - No tag: If there is no extra tag, the ROM is likely the original version.
@@ -17,7 +17,7 @@ This script requires a basic knowledge of using the terminal. If you are using a
     git clone https://github.com/rsnemmen/rom-cleaner.git
     chmod u+x rom-cleaner.sh
 
-### Check which files it will keep
+### Check without changing anything
 
 By using the `--dry-run` option, the script will not actually change anything in the disk. It will only display the files and the decision to delete or keep for each one.
 
@@ -28,3 +28,7 @@ By using the `--dry-run` option, the script will not actually change anything in
 Warning: this will delete files the tool judges to not be good ROMs. Be careful.
 
     rom-cleaner <directory-with-ROMs>
+
+### Remove also homebrew versions
+
+    rom-cleaner --homebrew <directory-with-ROMs>
