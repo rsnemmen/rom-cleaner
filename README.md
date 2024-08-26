@@ -9,13 +9,14 @@ The purpose of this script is to clean a ROM collection, discarding modification
 
 This script requires a basic knowledge of using the terminal. If you are using a Mac or Linux box, just open the terminal and issue the commands below. If you are windows user, you will have to install either [Git Bash](gitforwindows.org) or [Cygwin](cygwin.com) in order to execute this script. 
 
-## How to use
 
-
-### Download the tool
+## Download the tool
 
     git clone https://github.com/rsnemmen/rom-cleaner.git
     chmod u+x rom-cleaner.sh
+
+
+## How to use
 
 ### Check without changing anything
 
