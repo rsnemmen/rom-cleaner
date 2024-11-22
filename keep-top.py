@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 '''
-rom-cleaner: A script to filter ROM files based on a list of game names.
+keep-top: A script to filter ROM files based on a list of game names.
 
 This script scans a directory for ROM files and cross-references their names with a 
 list of desired game names provided in a text file (let's say, `keep.txt`). 
@@ -9,10 +9,10 @@ substring matching. Matching files are moved to a `kept_files` subdirectory, unl
 the `--dry-run` flag is specified.
 
 USAGE:
-    keep-top.py <directory> <keep_file> [--dry-run]
+    keep-top.py <dir> <keep_file> [--dry-run]
 
 ARGUMENTS:
-    directory   The directory containing the ROM files to filter.
+    dir   The directory containing the ROM files to filter.
     keep_file   The path to the `keep.txt` file containing the list of games to keep.
 
 OPTIONS:
@@ -23,47 +23,45 @@ BEHAVIOR:
     - The script performs case-insensitive matching and checks if any game name in 
       `keep.txt` is a substring of the ROM filenames in the specified directory.
     - If a match is found:
-        - In normal mode, the file is moved to a `kept_files` subdirectory within 
-          the same directory.
+        - In normal mode, all files not matching are removed, so be careful!
         - In `--dry-run` mode, the matching files are listed but not moved.
-    - Files that do not match any name in `keep.txt` are left untouched in their 
-      original location.
 
 EXAMPLES:
-    1. To filter ROMs and move matching files to a subdirectory:
-        python rom-cleaner.py ./roms ./keep.txt
+    1. To filter ROMs and remove non-matching games:
+        keep-top.py ./roms ./keep.txt
 
     2. To preview which files would be kept without making changes:
-        python rom-cleaner.py ./roms ./keep.txt --dry-run
-
-NOTES:
-    - The `keep.txt` file should contain one game name per line (case-insensitive).
-    - Matching is performed using substring checks, so partial matches are allowed.
-    - The script creates a `kept_files` subdirectory in the specified directory 
-      to store the matching files.
+        keep-top.py ./roms ./keep.txt --dry-run
 '''
-
 
 import os
 import argparse
-import shutil
 
-def clean_roms(directory, keep_file, dry_run):
+def clean_roms(directory, keep_file, dry_run, extensions):
+    """
+    Print the files that will be kept based on the keep_file, and optionally delete non-matching files.
+
+    Args:
+        directory (str): The directory containing the ROM files.
+        keep_file (str): Path to the keep.txt file containing the list of game names to keep.
+        dry_run (bool): If True, simulate the behavior without modifying the filesystem.
+        extensions (list): List of file extensions to process (e.g., ['.sms']).
+
+    Behavior:
+        - Reads game names from the keep.txt file.
+        - Prints the files that match any name in keep.txt and have one of the allowed extensions.
+        - Optionally deletes all other files if dry_run is not set.
+        - Skips the keep.txt file itself.
+        - Case-insensitive substring matching is used to determine matches.
+    """
     # Read the list of games to keep
     with open(keep_file, 'r', encoding='utf-8') as f:
         keep_games = [line.strip().lower() for line in f.readlines()]
 
-    # Create a list of all files in the directory
+    # List all files in the directory
     files_in_directory = os.listdir(directory)
 
-    if not dry_run:
-        # Create a subdirectory to store the files that are kept
-        keep_directory = os.path.join(directory, "kept_files")
-        os.makedirs(keep_directory, exist_ok=True)
-    else:
-        keep_directory = None  # Not needed for dry run
-
-    # Track files that would be moved (for dry-run output)
+    # Track files that will be kept
     kept_files = []
 
     # Iterate through the files in the directory
@@ -74,46 +72,72 @@ def clean_roms(directory, keep_file, dry_run):
         if not os.path.isfile(file_path):
             continue
 
-        # Check if any game in keep_games is a substring of the filename
+        # Skip the keep.txt file itself
+        if os.path.abspath(file_path) == os.path.abspath(keep_file):
+            continue
+
+        # Check if the file has one of the allowed extensions
+        if not any(filename.lower().endswith(ext) for ext in extensions):
+            continue
+
+        # Check if the file matches any of the game names in keep_games
         if any(game in filename.lower() for game in keep_games):
+            # File matches; add to the kept list
             kept_files.append(filename)
+        else:
+            # File does not match; delete if not in dry-run mode
             if not dry_run:
-                # Move the file to the "kept_files" directory
-                shutil.move(file_path, os.path.join(keep_directory, filename))
+                os.remove(file_path)
 
     # Output results
-    if dry_run:
-        print("Dry run: The following files would be kept:")
-        for file in kept_files:
-            print(f"  {file}")
+    print("The following files will be kept:")
+    for file in kept_files:
+        print(f"  {file}")
+
+    if not dry_run:
+        print(f"Deleted {len(files_in_directory) - len(kept_files)} files that did not match the keep list.")
     else:
-        print(f"Files have been filtered. Kept files are stored in '{keep_directory}'.")
+        print("Dry run: No files were deleted.")
+
 
 def main():
+    """
+    Entry point for the script. Parses command-line arguments and runs the script.
+    """
     # Set up command-line argument parsing
     parser = argparse.ArgumentParser(
-        description="Filter ROM files based on a list of game names in keep.txt."
+        description="Filter ROM files based on a list of game names in keep.txt, deleting non-matching files."
     )
     parser.add_argument(
-        "directory", 
-        type=str, 
+        "directory",
+        type=str,
         help="The directory containing the ROM files."
     )
     parser.add_argument(
-        "keep_file", 
-        type=str, 
+        "keep_file",
+        type=str,
         help="The path to the keep.txt file containing game names to keep."
     )
     parser.add_argument(
-        "--dry-run", 
-        action="store_true", 
+        "--dry-run",
+        action="store_true",
         help="Run the script without making changes to the disk."
+    )
+    parser.add_argument(
+        "--extensions",
+        type=str,
+        default=".sms",
+        help="Comma-separated list of file extensions to process (default: .sms)."
     )
 
     args = parser.parse_args()
 
+    # Parse the extensions argument into a list of extensions
+    extensions = [ext.strip().lower() for ext in args.extensions.split(",")]
+
     # Call the clean_roms function with parsed arguments
-    clean_roms(args.directory, args.keep_file, args.dry_run)
+    clean_roms(args.directory, args.keep_file, args.dry_run, extensions)
+
 
 if __name__ == "__main__":
     main()
