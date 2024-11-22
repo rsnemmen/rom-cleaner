@@ -37,107 +37,99 @@ EXAMPLES:
 import os
 import argparse
 
-def clean_roms(directory, keep_file, dry_run, extensions):
+def load_keep_list(file_path):
     """
-    Print the files that will be kept based on the keep_file, and optionally delete non-matching files.
-
-    Args:
-        directory (str): The directory containing the ROM files.
-        keep_file (str): Path to the keep.txt file containing the list of game names to keep.
-        dry_run (bool): If True, simulate the behavior without modifying the filesystem.
-        extensions (list): List of file extensions to process (e.g., ['.sms']).
-
-    Behavior:
-        - Reads game names from the keep.txt file.
-        - Prints the files that match any name in keep.txt and have one of the allowed extensions.
-        - Optionally deletes all other files if dry_run is not set.
-        - Skips the keep.txt file itself.
-        - Case-insensitive substring matching is used to determine matches.
+    Load the list of games to keep from the specified text file.
     """
-    # Read the list of games to keep
-    with open(keep_file, 'r', encoding='utf-8') as f:
-        keep_games = [line.strip().lower() for line in f.readlines()]
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            return [line.strip() for line in f if line.strip()]
+    except FileNotFoundError:
+        print(f"Error: The file '{file_path}' was not found.")
+        exit(1)
 
-    # List all files in the directory
-    files_in_directory = os.listdir(directory)
+def matches_keep_list(filename, keep_list):
+    """
+    Check if the file matches any entry in the keep list.
+    Matching is case-insensitive and based on substring containment.
+    """
+    for game in keep_list:
+        if game.lower() in filename.lower():
+            return True
+    return False
 
-    # Track files that will be kept
-    kept_files = []
-
-    # Iterate through the files in the directory
-    for filename in files_in_directory:
-        file_path = os.path.join(directory, filename)
-
-        # Skip if it's not a file
-        if not os.path.isfile(file_path):
-            continue
-
-        # Skip the keep.txt file itself
-        if os.path.abspath(file_path) == os.path.abspath(keep_file):
-            continue
-
-        # Check if the file has one of the allowed extensions
-        if not any(filename.lower().endswith(ext) for ext in extensions):
-            continue
-
-        # Check if the file matches any of the game names in keep_games
-        if any(game in filename.lower() for game in keep_games):
-            # File matches; add to the kept list
-            kept_files.append(filename)
+def confirm_action():
+    """
+    Prompt the user for confirmation before proceeding with deletion.
+    """
+    while True:
+        response = input("Are you sure you want to delete the unmatched files? (Y/n): ").strip().lower()
+        if response in {"y", "yes", ""}:
+            return True
+        elif response in {"n", "no"}:
+            return False
         else:
-            # File does not match; delete if not in dry-run mode
-            if not dry_run:
-                os.remove(file_path)
-
-    # Output results
-    print("The following files will be kept:")
-    for file in kept_files:
-        print(f"  {file}")
-
-    if not dry_run:
-        print(f"Deleted {len(files_in_directory) - len(kept_files)} files that did not match the keep list.")
-    else:
-        print("Dry run: No files were deleted.")
-
+            print("Please enter 'Y' or 'n'.")
 
 def main():
-    """
-    Entry point for the script. Parses command-line arguments and runs the script.
-    """
-    # Set up command-line argument parsing
-    parser = argparse.ArgumentParser(
-        description="Filter ROM files based on a list of game names in keep.txt, deleting non-matching files."
-    )
-    parser.add_argument(
-        "directory",
-        type=str,
-        help="The directory containing the ROM files."
-    )
-    parser.add_argument(
-        "keep_file",
-        type=str,
-        help="The path to the keep.txt file containing game names to keep."
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Run the script without making changes to the disk."
-    )
-    parser.add_argument(
-        "--extensions",
-        type=str,
-        default=".sms",
-        help="Comma-separated list of file extensions to process (default: .sms)."
-    )
-
+    parser = argparse.ArgumentParser(description="Filter ROM files based on a keep list.")
+    parser.add_argument("directory", type=str, help="The directory containing the ROM files.")
+    parser.add_argument("keep_file", type=str, help="The text file listing games to keep.")
+    parser.add_argument("--dry-run", action="store_true", help="Do not delete files, only show what would be kept.")
+    
     args = parser.parse_args()
+    
+    # Validate directory
+    if not os.path.isdir(args.directory):
+        print(f"Error: The directory '{args.directory}' does not exist.")
+        exit(1)
+    
+    # Load the keep list
+    keep_list = load_keep_list(args.keep_file)
+    if not keep_list:
+        print("Error: The keep list is empty.")
+        exit(1)
 
-    # Parse the extensions argument into a list of extensions
-    extensions = [ext.strip().lower() for ext in args.extensions.split(",")]
+    # List all files in the directory (skip subdirectories)
+    files_in_directory = [
+        f for f in os.listdir(args.directory) 
+        if os.path.isfile(os.path.join(args.directory, f))
+    ]
+    files_to_keep = []
+    files_to_delete = []
 
-    # Call the clean_roms function with parsed arguments
-    clean_roms(args.directory, args.keep_file, args.dry_run, extensions)
+    # Determine which files to keep and delete
+    for filename in files_in_directory:
+        if matches_keep_list(filename, keep_list):
+            files_to_keep.append(filename)
+        else:
+            files_to_delete.append(filename)
 
+    # Display results
+    if files_to_keep:
+        print("The following files will be kept:")
+        for file in files_to_keep:
+            print(f"  {file}")
+    else:
+        print("No files match the keep list. All files will be deleted.")
+
+    # Dry-run or actual deletion
+    if args.dry_run:
+        print("\nDry run mode: No files were deleted.")
+    else:
+        if files_to_delete:
+            # Confirm action
+            if confirm_action():
+                delete_count = 0
+                for file in files_to_delete:
+                    file_path = os.path.join(args.directory, file)
+                    os.remove(file_path)
+                    delete_count += 1
+                print(f"\n{delete_count} unmatched file{'s' if delete_count > 1 else ''} have been deleted.")
+            else:
+                print("\nOperation cancelled.")
+        else:
+            print("\nNo files to delete. All files match the keep list.")
 
 if __name__ == "__main__":
     main()
