@@ -34,34 +34,37 @@ chmod u+x rom-cleaner.sh parse-dirs.sh
 
 ### Case study 1
 
-Suppose you have the following Super Nintendo ROMs in a directory named `SNES`:
+`rom-cleaner` recognises the [GoodTools](https://segaretro.org/GoodTools) naming convention, where region and dump info appear in square brackets. Suppose you have the following Super Nintendo ROMs in a directory named `SNES`:
 
 ```
-Aladdin (E).smc
-Aladdin (F).smc
-Aladdin (G) [!].smc
-Aladdin (J).smc
-Aladdin (S) (NG-Dump Known).smc
-Aladdin (U) [!].smc
+Aladdin [E].smc
+Aladdin [F].smc
+Aladdin [J] [!].smc
+Aladdin [S][b1].smc
+Aladdin [U] [!].smc
 ```
 
-You want to remove all files which are hacks, bad dumps, betas etc, leaving only the Japanese and US versions. Run:
+You want to remove the European, French, and Spanish (bad-dump) versions, leaving only the Japanese and US verified dumps. Run:
 
 ```bash
 ./rom-cleaner.sh --dry-run SNES   # preview first
 ./rom-cleaner.sh SNES             # then delete
 ```
 
+This keeps `Aladdin [J] [!].smc` and `Aladdin [U] [!].smc` and deletes the rest.
+
+Note: the tool only treats files as hacks if the literal word `hack`/`Hack` appears in the filename. GoodTools shorthand like `[h1]` is not recognised — a file like `Aladdin [U] [h1].smc` would still be kept because of the `[U]` tag.
+
 ## `rom-cleaner`
 
-Shell script. Keeps only files matching:
+Shell script. Hacks (filenames containing `hack`/`Hack`) and betas (`(Beta)`) are always deleted, regardless of other tags. After that filter, files are kept if they match any of:
 
-- `[!]` — verified good dump (always kept, even if filename contains other tags)
+- `[!]` — verified good dump
 - `[U]` or `[u]` — US release
 - `[J]` or `[j]` — Japan release
 - No bracketed tag at all — likely the original release
 
-Everything else is deleted: hacks, alternate dumps, translations, bad dumps, betas.
+Everything else is deleted: alternate dumps, translations, regional variants other than US/Japan, bad dumps.
 
 ### Usage
 
