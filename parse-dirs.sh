@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Define the PATH to locate rom-cleaner.sh
-ROM_CLEANER_PATH="/Users/nemmen/Dropbox/codes/shell/file-utilities/rom-cleaner"
+# Resolve rom-cleaner.sh relative to this script's own directory
+ROM_CLEANER_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Check if at least one argument is provided
 if [ "$#" -lt 1 ]; then
