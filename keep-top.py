@@ -6,7 +6,8 @@ Scans a directory for ROM files and cross-references their names with a list
 of desired game names from a text file (e.g. keep.txt). Files whose names
 do not fuzzy-match any entry in the keep list are deleted. Matching uses
 case-insensitive fuzzy scoring (rapidfuzz WRatio) after stripping region/dump
-tags like (U), [!] from filenames, so "aladdin" matches "Aladdin (U) [!].smc".
+tags like (U), [!], and (USA) from filenames, so "aladdin" matches both
+"Aladdin (U) [!].smc" and "Aladdin (USA) (Rev 1).zip".
 
 USAGE:
     keep-top.py <dir> <keep_file> [--dry-run] [--threshold N]
@@ -22,7 +23,9 @@ OPTIONS:
 
 import os
 import argparse
-from fuzzycp import file_matching, preprocessing
+from fuzzycp import file_matching
+
+from rom_naming import normalize_rom_title
 
 
 def load_keep_list(file_path):
@@ -74,8 +77,8 @@ def main():
         print("No files found in directory.")
         return
 
-    # Clean filenames for fuzzy matching (strips tags like (U), [!], extensions)
-    files_cleaned = preprocessing(files_in_directory)
+    # Clean filenames for fuzzy matching using the same parser as rom-cleaner.
+    files_cleaned = [normalize_rom_title(name) for name in files_in_directory]
     map_orig: dict = {}
     for cleaned, orig in zip(files_cleaned, files_in_directory):
         map_orig.setdefault(cleaned, []).append(orig)

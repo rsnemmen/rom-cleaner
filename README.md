@@ -34,7 +34,9 @@ chmod u+x rom-cleaner.sh parse-dirs.sh
 
 ### Case study 1
 
-`rom-cleaner` recognises the [GoodTools](https://segaretro.org/GoodTools) naming convention, where region and dump info appear in square brackets. Suppose you have the following Super Nintendo ROMs in a directory named `SNES`:
+`rom-cleaner` now understands both [GoodTools](https://segaretro.org/GoodTools) filenames and No-Intro-style filenames. GoodTools keeps its old behavior by default, and you can opt into other parsing rules with `--convention`.
+
+Suppose you have the following Super Nintendo ROMs in a directory named `SNES`:
 
 ```
 Aladdin [E].smc
@@ -53,18 +55,24 @@ You want to remove the European, French, and Spanish (bad-dump) versions, leavin
 
 This keeps `Aladdin [J] [!].smc` and `Aladdin [U] [!].smc` and deletes the rest.
 
-Note: the tool only treats files as hacks if the literal word `hack`/`Hack` appears in the filename. GoodTools shorthand like `[h1]` is not recognised — a file like `Aladdin [U] [h1].smc` would still be kept because of the `[U]` tag.
-
 ## `rom-cleaner`
 
-Shell script. Hacks (filenames containing `hack`/`Hack`) and betas (`(Beta)`) are always deleted, regardless of other tags. After that filter, files are kept if they match any of:
+Shell wrapper around a shared Python parser. It understands the following conventions:
+
+- `goodtools` — square-bracket tags like `[U]` and `[!]` (default)
+- `no-intro` — parenthetical tags like `(USA)` and `(Beta)`
+- `auto` — applies both parsers, useful for mixed collections
+
+Hacks and prerelease builds such as betas and prototypes are always deleted, regardless of other tags. After that filter, files are kept if they match any of:
 
 - `[!]` — verified good dump
 - `[U]` or `[u]` — US release
 - `[J]` or `[j]` — Japan release
-- No bracketed tag at all — likely the original release
+- `(USA)` — No-Intro US release
+- `(Japan)` — No-Intro Japan release
+- No recognized convention tag at all — likely the original release
 
-Everything else is deleted: alternate dumps, translations, regional variants other than US/Japan, bad dumps.
+Other variants are deleted unless they carry one of the allowed keep markers above.
 
 ### Usage
 
@@ -75,18 +83,24 @@ Everything else is deleted: alternate dumps, translations, regional variants oth
 # Delete bad dumps
 ./rom-cleaner.sh <roms-dir>
 
+# Parse filenames as No-Intro releases
+./rom-cleaner.sh --convention no-intro <roms-dir>
+
+# Apply both GoodTools and No-Intro parsing rules
+./rom-cleaner.sh --convention auto <roms-dir>
+
 # Also delete homebrew ("Game by Author" naming)
 ./rom-cleaner.sh --homebrew <roms-dir>
 
 # Run across multiple directories at once
-./parse-dirs.sh [--dry-run] [--homebrew] <dir1> <dir2> ...
+./parse-dirs.sh [--dry-run] [--homebrew] [--convention <name>] <dir1> <dir2> ...
 ```
 
 ## `keep-top`
 
 Python script. Given a text file of game names (one per line), keeps only the ROM files that fuzzy-match one of those names and deletes everything else.
 
-Matching strips region and dump tags (`(U)`, `[!]`, etc.) from filenames before comparing, so `aladdin` in your list will match `Aladdin (U) [!].smc`. Uses `rapidfuzz.WRatio` scoring — tolerant of typos, different word orders, and punctuation differences.
+Matching now uses the same shared filename parser as `rom-cleaner`, stripping both GoodTools and No-Intro tags before comparing. That means `aladdin` in your list will still match `Aladdin (U) [!].smc`, and it also matches filenames like `Aladdin (USA) (Rev 1).zip`. Uses `rapidfuzz.WRatio` scoring — tolerant of typos, different word orders, and punctuation differences.
 
 ### Usage
 

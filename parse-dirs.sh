@@ -5,7 +5,7 @@ ROM_CLEANER_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Check if at least one argument is provided
 if [ "$#" -lt 1 ]; then
-  echo "Usage: $0 [--dry-run|--homebrew] <dir1> <dir2> ..."
+  echo "Usage: $0 [--dry-run] [--homebrew] [--convention <name>] <dir1> <dir2> ..."
   exit 1
 fi
 
@@ -14,13 +14,27 @@ directories=()
 extra_args=()
 
 # Parse arguments
-for arg in "$@"; do
-  case "$arg" in
+while [ "$#" -gt 0 ]; do
+  case "$1" in
     --dry-run|--homebrew)
-      extra_args+=("$arg") # Add optional arguments to an array
+      extra_args+=("$1")
+      shift
+      ;;
+    --convention)
+      if [ "$#" -lt 2 ]; then
+        echo "Error: --convention requires a value."
+        exit 1
+      fi
+      extra_args+=("$1" "$2")
+      shift 2
+      ;;
+    --convention=*)
+      extra_args+=("$1")
+      shift
       ;;
     *)
-      directories+=("$arg") # Treat other arguments as directories
+      directories+=("$1")
+      shift
       ;;
   esac
 done
