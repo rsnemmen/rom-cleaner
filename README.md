@@ -23,6 +23,13 @@ Or if you already have the sibling repo:
 pip install -e /path/to/fuzzy_cp
 ```
 
+To run the automated tests:
+
+```bash
+pip install -r requirements-dev.txt
+python3 -m pytest
+```
+
 ## Download
 
 ```bash
