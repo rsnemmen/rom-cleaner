@@ -1,4 +1,2 @@
-# fuzzycp must be installed from the sibling project directory.
-# Run once: pip install -e /path/to/fuzzy_cp
-# On this machine:
-fuzzycp @ file:///Users/nemmen/Library/CloudStorage/Dropbox/codes/python_projects/file_utilities/fuzzy_cp
+# Install fuzzycp directly from the GitHub repository.
+fuzzycp @ git+https://github.com/rsnemmen/fuzzy_cp.git

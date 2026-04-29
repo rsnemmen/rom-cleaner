@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Two tools for pruning large ROM collections:
 
 - **`rom-cleaner.sh`** — shell wrapper around a Python cleaner that deletes bad dumps, hacks, betas/prototypes, and regional variants the user doesn't want. It supports `goodtools`, `no-intro`, and `auto` parsing modes; `goodtools` remains the default.
-- **`keep-top.py`** — Python 3 script that deletes any ROM not fuzzy-matching a user-supplied game list (`keep.txt`), using `rapidfuzz.WRatio` via the `fuzzycp` package. The `fuzzycp` dependency is pinned in `requirements.txt` as a file:// URL to the sibling repo; install with `pip install -r requirements.txt` (or `pip install -e /path/to/fuzzy_cp` directly).
+- **`keep-top.py`** — Python 3 script that deletes any ROM not fuzzy-matching a user-supplied game list (`keep.txt`), using `rapidfuzz.WRatio` via the `fuzzycp` package. The `fuzzycp` dependency is pulled from `https://github.com/rsnemmen/fuzzy_cp` via `requirements.txt`; install with `pip install -r requirements.txt`.
 - **`parse-dirs.sh`** — wrapper that runs `rom-cleaner.sh` across multiple directories; uses script-relative path resolution so it works regardless of where the repo is cloned.
 
 ## Running the tools

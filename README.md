@@ -10,23 +10,18 @@ This is a set of programs for solving these issues. It has two basic tools:
 ## Requirements
 
 - Bash (macOS/Linux built-in; on Windows use Git Bash or Cygwin)
-- Python 3.6+ and `fuzzycp` for `keep-top`:
+- Python 3.6+ and pip
+
+Install the Python dependency for `keep-top`:
 
 ```bash
-git clone https://github.com/rsnemmen/fuzzy_cp.git
-pip install -e fuzzy_cp
-```
-
-Or if you already have the sibling repo:
-
-```bash
-pip install -e /path/to/fuzzy_cp
+pip install -r requirements.txt
 ```
 
 To run the automated tests:
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -r requirements.txt -r requirements-dev.txt
 python3 -m pytest
 ```
 
