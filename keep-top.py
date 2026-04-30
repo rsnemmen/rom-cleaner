@@ -10,7 +10,7 @@ tags like (U), [!], and (USA) from filenames, so "aladdin" matches both
 "Aladdin (U) [!].smc" and "Aladdin (USA) (Rev 1).zip".
 
 USAGE:
-    keep-top.py <dir> <keep_file> [--dry-run] [--threshold N]
+    keep-top.py <dir> <keep_file> [--dry-run] [--threshold N] [--yes] [--trash]
 
 ARGUMENTS:
     dir         Directory containing the ROM files to filter.
@@ -19,13 +19,16 @@ ARGUMENTS:
 OPTIONS:
     --dry-run       Show what would be kept/deleted without making any changes.
     --threshold N   Minimum fuzzy match score 0-100 (default: 50).
+    --yes, -y       Skip confirmation prompt (for scripting).
+    --trash         Send deleted files to the system trash instead of permanently removing them.
 '''
 
 import os
+import sys
 import argparse
 from fuzzycp import file_matching
 
-from rom_naming import normalize_rom_title
+from rom_naming import VERSION, delete_path, format_bytes, normalize_rom_title
 
 
 def load_keep_list(file_path):
@@ -34,7 +37,7 @@ def load_keep_list(file_path):
             return [line.strip() for line in f if line.strip()]
     except FileNotFoundError:
         print(f"Error: The file '{file_path}' was not found.")
-        exit(1)
+        sys.exit(1)
 
 
 def confirm_action():
@@ -56,17 +59,28 @@ def main():
                         help="Show what would be kept/deleted without making any changes.")
     parser.add_argument("--threshold", type=int, default=50, metavar="N",
                         help="Minimum fuzzy match score 0-100 (default: 50).")
+    parser.add_argument("--yes", "-y", action="store_true",
+                        help="Skip confirmation prompt (for scripting).")
+    parser.add_argument("--trash", action="store_true",
+                        help="Send deleted files to the system trash instead of permanently removing them.")
+    parser.add_argument("--version", action="version", version=f"keep-top {VERSION}")
 
     args = parser.parse_args()
 
     if not os.path.isdir(args.directory):
         print(f"Error: The directory '{args.directory}' does not exist.")
-        exit(1)
+        sys.exit(1)
+
+    if args.trash:
+        from rom_naming import send2trash as _st
+        if _st is None:
+            print("Error: --trash requires send2trash: pip install send2trash")
+            sys.exit(1)
 
     keep_list = load_keep_list(args.keep_file)
     if not keep_list:
         print("Error: The keep list is empty.")
-        exit(1)
+        sys.exit(1)
 
     files_in_directory = [
         f for f in os.listdir(args.directory)
@@ -77,13 +91,11 @@ def main():
         print("No files found in directory.")
         return
 
-    # Clean filenames for fuzzy matching using the same parser as rom-cleaner.
     files_cleaned = [normalize_rom_title(name) for name in files_in_directory]
     map_orig: dict = {}
     for cleaned, orig in zip(files_cleaned, files_in_directory):
         map_orig.setdefault(cleaned, []).append(orig)
 
-    # Fuzzy match: each keep-list entry → best matching cleaned filename
     best_matches = file_matching(keep_list, files_cleaned)
 
     files_to_keep = set()
@@ -108,16 +120,31 @@ def main():
             print("\nDry run: No files to delete.")
         return
 
-    if files_to_delete:
-        if confirm_action():
-            for f in files_to_delete:
-                os.remove(os.path.join(args.directory, f))
-            n = len(files_to_delete)
-            print(f"\n{n} unmatched file{'s' if n > 1 else ''} deleted.")
-        else:
-            print("\nOperation cancelled.")
-    else:
+    if not files_to_delete:
         print("\nNo files to delete. All files match the keep list.")
+        return
+
+    if not args.yes and not confirm_action():
+        print("\nOperation cancelled.")
+        return
+
+    deleted = 0
+    errors = 0
+    bytes_freed = 0
+    for f in files_to_delete:
+        f_path = os.path.join(args.directory, f)
+        size = os.path.getsize(f_path)
+        try:
+            delete_path(f_path, trash=args.trash)
+            deleted += 1
+            bytes_freed += size
+        except OSError as exc:
+            print(f"Warning: could not delete {f}: {exc}")
+            errors += 1
+
+    kept = len(files_to_keep)
+    parts = [f"Kept: {kept}", f"Deleted: {deleted} ({format_bytes(bytes_freed)})", f"Errors: {errors}"]
+    print("\n" + " | ".join(parts))
 
 
 if __name__ == "__main__":

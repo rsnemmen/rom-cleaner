@@ -16,14 +16,20 @@ Two tools for pruning large ROM collections:
 # Preview without deleting anything
 ./rom-cleaner.sh --dry-run <roms-dir>
 
-# Delete bad dumps (GoodTools default: keeps [!], [U]/[u], [J]/[j], untagged)
+# Delete bad dumps (default: keeps USA, [!] with no region, untagged)
 ./rom-cleaner.sh <roms-dir>
+
+# Also keep Japan and Europe
+./rom-cleaner.sh --regions usa,japan,europe <roms-dir>
 
 # Parse No-Intro filenames like (USA) and (Japan)
 ./rom-cleaner.sh --convention no-intro <roms-dir>
 
-# Also delete homebrew ("by <author>" in filename)
+# Also delete homebrew ("Game by Author" in filename)
 ./rom-cleaner.sh --homebrew <roms-dir>
+
+# Send deleted files to Trash instead of permanently removing them
+./rom-cleaner.sh --trash <roms-dir>
 
 # Run rom-cleaner across multiple directories at once
 ./parse-dirs.sh [--dry-run] [--homebrew] [--convention <name>] <dir1> <dir2> ...
@@ -32,12 +38,28 @@ Two tools for pruning large ROM collections:
 python3 keep-top.py <roms-dir> keep.txt --dry-run
 python3 keep-top.py <roms-dir> keep.txt
 
+# Skip confirmation prompt (for scripting)
+python3 keep-top.py <roms-dir> keep.txt --yes
+
+# Send deleted files to Trash
+python3 keep-top.py <roms-dir> keep.txt --trash
+
 # Tighten fuzzy threshold (default 50, range 0-100)
 python3 keep-top.py <roms-dir> keep.txt --threshold 75
 ```
 
 ## Key logic
 
-`rom-cleaner.sh` now delegates filename parsing to shared Python helpers so both `rom-cleaner` and `keep-top.py` interpret tags consistently. In `goodtools` mode it preserves the existing keep policy for `[!]`, `[U]`/`[u]`, `[J]`/`[j]`, and untagged files, while also understanding shorthand hack tags like `[h1]`. In `no-intro` mode it recognises parenthetical region tags like `(USA)` and `(Japan)`, and prerelease tags like `(Beta)` and `(Proto)`. Only top-level files are processed (no recursion).
+`rom-cleaner.sh` delegates filename parsing to shared Python helpers so both `rom-cleaner` and `keep-top.py` interpret tags consistently.
 
-`keep-top.py` uses the same shared filename normalizer as `rom-cleaner.sh` to strip region/dump tags from candidate filenames before matching, so `aladdin` in `keep.txt` matches both `Aladdin (U) [!].smc` and `Aladdin (USA) (Rev 1).zip`. Multiple ROM variants that share the same cleaned stem are all kept when any one of them matches. Prompts for confirmation before deletion. Skips subdirectories.
+`rom_naming.py` exposes `ParsedRomName` (the parsed result) and `should_keep`. Key fields:
+- `is_bad_quality` — `[a]`/`[b]`/`[f]`/`[o]`/`[p]`/`[t]` and numbered variants; always deleted, overrides region and `[!]`
+- `is_revision`, `is_disc` — `(Rev N)`, `(Disc N)`; benign metadata, treated like untagged
+- `is_language_only_paren`, `has_only_benign_paren_tags` — lang-only tags like `(En,Fr,De)` are also benign
+- `is_homebrew` — checked against the post-strip title (case-sensitive), so `Stand By Me` is not flagged
+
+`should_keep` takes a `keep_regions` frozenset (default `{"usa"}`). Files are kept if they match a region in the set, carry `[!]` with no region tag, have no convention tags at all, or have only benign paren tags. Bad-quality, hack, beta, and prototype files are always deleted first.
+
+`keep-top.py` uses the same shared filename normalizer to strip region/dump tags before fuzzy matching. Multiple ROM variants sharing the same cleaned stem are all kept when any one matches. Skips subdirectories.
+
+Both tools print a summary line at the end: `Kept: X | Deleted: Y (Z MB) | Errors: N`.

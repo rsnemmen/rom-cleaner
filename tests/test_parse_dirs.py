@@ -11,8 +11,10 @@ def test_parse_dirs_uses_script_relative_path_and_forwards_args(
 ):
     rom_dir = tmp_path / "roms"
     rom_dir.mkdir()
-    rom_file = rom_dir / "Aladdin (Rev 1).zip"
-    rom_file.write_text("", encoding="utf-8")
+    kept_file = rom_dir / "Aladdin (USA).zip"
+    deleted_file = rom_dir / "Aladdin (Europe).zip"
+    kept_file.write_text("", encoding="utf-8")
+    deleted_file.write_text("", encoding="utf-8")
     missing_dir = tmp_path / "missing"
 
     result = subprocess.run(
@@ -34,5 +36,7 @@ def test_parse_dirs_uses_script_relative_path_and_forwards_args(
     assert result.returncode == 0
     assert f'Processing directory: "{rom_dir}"' in result.stdout
     assert f"Error: '{missing_dir}' is not a valid directory. Skipping..." in result.stdout
+    assert "Keeping:" in result.stdout
     assert "Deleting:" in result.stdout
-    assert rom_file.exists()
+    assert kept_file.exists()
+    assert deleted_file.exists()  # dry-run: nothing actually deleted

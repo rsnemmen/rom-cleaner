@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from unittest.mock import patch
 
 import pytest
 
@@ -88,14 +89,7 @@ def test_threshold_filters_out_low_scoring_matches(
     monkeypatch.setattr(
         sys,
         "argv",
-        [
-            "keep-top.py",
-            str(rom_dir),
-            str(keep_file),
-            "--dry-run",
-            "--threshold",
-            "50",
-        ],
+        ["keep-top.py", str(rom_dir), str(keep_file), "--dry-run", "--threshold", "50"],
     )
 
     assert keep_top.main() is None
@@ -124,11 +118,7 @@ def test_confirmed_run_deletes_unmatched_files(
     keep_top = load_keep_top_module(
         lambda keep_list, files_cleaned: {"aladdin": ("Aladdin", 98)},
     )
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["keep-top.py", str(rom_dir), str(keep_file)],
-    )
+    monkeypatch.setattr(sys, "argv", ["keep-top.py", str(rom_dir), str(keep_file)])
     monkeypatch.setattr("builtins.input", lambda prompt: "y")
 
     assert keep_top.main() is None
@@ -136,7 +126,9 @@ def test_confirmed_run_deletes_unmatched_files(
     output = capsys.readouterr().out
     assert kept_file.exists()
     assert not deleted_file.exists()
-    assert "1 unmatched file deleted." in output
+    assert "Kept: 1" in output
+    assert "Deleted: 1" in output
+    assert "Errors: 0" in output
 
 
 def test_cancelled_run_keeps_files_in_place(
@@ -155,11 +147,7 @@ def test_cancelled_run_keeps_files_in_place(
     keep_top = load_keep_top_module(
         lambda keep_list, files_cleaned: {"aladdin": ("Batman", 0)},
     )
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["keep-top.py", str(rom_dir), str(keep_file)],
-    )
+    monkeypatch.setattr(sys, "argv", ["keep-top.py", str(rom_dir), str(keep_file)])
     monkeypatch.setattr("builtins.input", lambda prompt: "n")
 
     assert keep_top.main() is None
@@ -167,3 +155,66 @@ def test_cancelled_run_keeps_files_in_place(
     output = capsys.readouterr().out
     assert rom_file.exists()
     assert "Operation cancelled." in output
+
+
+def test_yes_flag_skips_confirmation_prompt(
+    tmp_path,
+    load_keep_top_module,
+    monkeypatch,
+    capsys,
+):
+    keep_file = tmp_path / "keep.txt"
+    keep_file.write_text("aladdin\n", encoding="utf-8")
+    rom_dir = tmp_path / "roms"
+    rom_dir.mkdir()
+    deleted_file = rom_dir / "Batman [E].smc"
+    deleted_file.write_text("", encoding="utf-8")
+
+    keep_top = load_keep_top_module(
+        lambda keep_list, files_cleaned: {"aladdin": ("Batman", 0)},
+    )
+    monkeypatch.setattr(sys, "argv", ["keep-top.py", "--yes", str(rom_dir), str(keep_file)])
+
+    def should_not_be_called(prompt):
+        raise AssertionError("input() should not be called when --yes is set")
+
+    monkeypatch.setattr("builtins.input", should_not_be_called)
+
+    assert keep_top.main() is None
+    assert not deleted_file.exists()
+
+
+def test_trash_flag_routes_through_send2trash(
+    tmp_path,
+    load_keep_top_module,
+    monkeypatch,
+    capsys,
+):
+    keep_file = tmp_path / "keep.txt"
+    keep_file.write_text("aladdin\n", encoding="utf-8")
+    rom_dir = tmp_path / "roms"
+    rom_dir.mkdir()
+    deleted_file = rom_dir / "Batman [E].smc"
+    deleted_file.write_text("x", encoding="utf-8")
+
+    keep_top = load_keep_top_module(
+        lambda keep_list, files_cleaned: {"aladdin": ("Batman", 0)},
+    )
+    monkeypatch.setattr(
+        sys, "argv",
+        ["keep-top.py", "--yes", "--trash", str(rom_dir), str(keep_file)],
+    )
+
+    trashed = []
+    removed = []
+
+    import types
+    import rom_naming
+
+    fake_st = types.SimpleNamespace(send2trash=lambda p: trashed.append(p))
+    monkeypatch.setattr(rom_naming, "send2trash", fake_st)
+    with patch("os.remove", side_effect=lambda p: removed.append(p)):
+        keep_top.main()
+
+    assert len(trashed) == 1
+    assert len(removed) == 0

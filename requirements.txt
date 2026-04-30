@@ -1,2 +1,3 @@
 # Install fuzzycp directly from the GitHub repository.
 fuzzycp @ git+https://github.com/rsnemmen/fuzzy_cp.git
+send2trash>=1.8
